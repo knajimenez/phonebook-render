@@ -7,3 +7,5 @@ Content-Type: application/json
     "name": "Kyle",
     "number": "11-22"
 }
+###
+DELETE http://localhost:3001/api/persons/63f601ad06a84338d65e8855
