@@ -30,6 +30,10 @@ let persons = [
         "number": "39-23-6423122"
     }
 ]
+// Endpoint to get the root of the server
+app.get('/', (request, response) => {
+    response.send('<h1>Hello World!</h1>')
+})
 
 // Endpoint to get information about the phonebook
 app.get('/info', (request, response) => {
