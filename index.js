@@ -6,6 +6,7 @@ app.use(express.json()) // Middleware to parse incoming JSON requests
 
 morgan.token('body', (request) => JSON.stringify(request.body)) // Custom token for Morgan to log the request body
 app.use(morgan(':method :url :status :response-time ms :body')) // Middleware to log requests in the console
+app.use(express.static('dist')) // Middleware to serve static files from the dist directory
 
 // Initial data for the phonebook
 let persons = [
@@ -104,7 +105,7 @@ app.delete('/api/persons/:id', (request, response) => {
     response.status(204).end() // Respond with a 204 status (No Content)
 })
 
-// Start the server on port 3001
+// Start the server and listen on a port
 const PORT = process.env.PORT || 3001 // Define the port
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`) // Log a message when the server starts
