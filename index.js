@@ -11,6 +11,8 @@ const errorHandler = (error, request, response, next) => {
 
     if (error.name === 'CastError') {
         return response.status(400).send({ error: 'malformatted id' })
+    } else if (error.name === 'ValidationError') {
+        return response.status(400).send({ error: error.message })
     }
 
     next(error)
@@ -61,14 +63,8 @@ app.get('/api/persons/:id', (request, response, next) => {
 })
 
 // Endpoint to add a new person to the phonebook
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
     const body = request.body // Extract the request body
-
-    if (!body.name || !body.number) { // Check if name and number are provided
-        return response.status(400).json({ // Respond with a 400 Bad Request status
-            error: 'name or number missing'
-        })
-    }
 
     const person = new Person({ // Create a new person object
         name: body.name, // Set the name from the request body
@@ -78,6 +74,9 @@ app.post('/api/persons', (request, response) => {
     person.save() // Save the person to the database
         .then(savedPerson => {
             response.json(savedPerson) // Respond with the saved person's data
+        })
+        .catch(error => {
+            next(error) // Pass any errors to the error handler middleware
         })
 })
 
