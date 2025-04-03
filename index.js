@@ -5,11 +5,21 @@ const Person = require('./models/person') // Import the Person model
 
 const app = express() // Create an Express application
 
-app.use(express.json()) // Middleware to parse incoming JSON requests
+// Middleware to handle errors
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
 
+    if (error.name === 'CastError') {
+        return response.status(400).send({ error: 'malformatted id' })
+    }
+
+    next(error)
+}
+
+app.use(express.json()) // Middleware to parse incoming JSON requests
+app.use(express.static('dist')) // Middleware to serve static files from the dist directory
 morgan.token('body', (request) => JSON.stringify(request.body)) // Custom token for Morgan to log the request body
 app.use(morgan(':method :url :status :response-time ms :body')) // Middleware to log requests in the console
-app.use(express.static('dist')) // Middleware to serve static files from the dist directory
 
 
 // Endpoint to get the root of the server
@@ -36,16 +46,29 @@ app.get('/api/persons', (request, response) => {
 })
 
 // Endpoint to get a specific person by ID
-app.get('/api/persons/:id', (request, response) => {
+app.get('/api/persons/:id', (request, response, next) => {
     Person.findById(request.params.id) // Find a person by ID
         .then(person => {
-            response.json(person) // Respond with the person's data
+            if (person) {
+                response.json(person) // Respond with the person's data
+            } else {
+                response.status(404).end() // Respond with a 404 Not Found status if the person is not found
+            }
+        })
+        .catch(error => {
+            next(error) // Pass any errors to the error handler middleware
         })
 })
 
 // Endpoint to add a new person to the phonebook
 app.post('/api/persons', (request, response) => {
     const body = request.body // Extract the request body
+
+    if (!body.name || !body.number) { // Check if name and number are provided
+        return response.status(400).json({ // Respond with a 400 Bad Request status
+            error: 'name or number missing'
+        })
+    }
 
     const person = new Person({ // Create a new person object
         name: body.name, // Set the name from the request body
@@ -58,12 +81,44 @@ app.post('/api/persons', (request, response) => {
         })
 })
 
-// Endpoint to delete a person by ID
-app.delete('/api/persons/:id', (request, response) => {
-    const id = request.params.id // Extract the ID from the request parameters
-    persons = persons.filter(person => person.id !== id) // Remove the person with the matching ID
-    response.status(204).end() // Respond with a 204 status (No Content)
+app.put('/api/persons/:id', (request, response, next) => {
+    const { name, number } = request.body // Extract name and number from the request body
+
+    Person.findById(request.params.id) // Find the person by ID
+        .then(person => {
+            if (!person) { // If the person is not found
+                return response.status(404).end() // Respond with a 404 Not Found status
+            }
+
+            person.name = name // Update the person's name
+            person.number = number // Update the person's number
+
+            return person.save().then(updatedPerson => {
+                response.json(updatedPerson) // Respond with the updated person's data
+            }) // Save the updated person to the database
+        })
+        .catch(error => {
+            next(error) // Pass any errors to the error handler middleware
+        })
 })
+
+// Endpoint to delete a person by ID
+app.delete('/api/persons/:id', (request, response, next) => {
+    Person.findByIdAndDelete(request.params.id) // Find and delete the person by ID
+        .then(() => {
+            response.status(204).end() // Respond with a 204 No Content status
+        })
+        .catch(error => {
+            next(error) // Pass any errors to the error handler middleware
+        })
+})
+
+const unknownEndpoint = (request, response) => {
+    response.status(404).send({ error: 'unknown endpoint' })// // Respond with a 404 Not Found status for unknown endpoints
+}
+
+app.use(unknownEndpoint) // Middleware to handle unknown endpoints
+app.use(errorHandler) // Middleware to handle errors
 
 // Start the server and listen on a port
 const PORT = process.env.PORT || 3001 // Define the port
